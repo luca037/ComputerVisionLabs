@@ -2,9 +2,11 @@
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 
+#define NS 3 // Neighborhood Size.
+
 void call_back_print_bgr(int event, int x, int y, int flags, void *userdata) {
     // Threshold.
-    static constexpr int T = 70;
+    static constexpr int T = 100;
 
     // Input image.
     cv::Mat *img = (cv::Mat*) userdata;
@@ -22,16 +24,16 @@ void call_back_print_bgr(int event, int x, int y, int flags, void *userdata) {
         printf("V=%d\n", (int) img->at<cv::Vec3b>(y, x)[2]);
 
         // Copute the mean for each channel (9x9 neighborhood).
-        for (int i = y - 4; i < (y - 4) + 9; i++) {
+        for (int i = y - 4; i < (y - 4) + NS; i++) {
             if (i < 0 or i >= img->rows) continue;
-            for (int j = x - 4; j < (x - 4) + 9; j++) {
+            for (int j = x - 4; j < (x - 4) + NS; j++) {
                 if (j < 0 or j >= img->cols) continue;
                 mean_h += (int) img->at<cv::Vec3b>(i, j)[0];
                 mean_s += (int) img->at<cv::Vec3b>(i, j)[1];
                 mean_v += (int) img->at<cv::Vec3b>(i, j)[2];
             }
         }
-        mean_h /= 81; mean_s /= 81; mean_v /= 81;
+        mean_h /= NS * NS; mean_s /= NS * NS; mean_v /= NS * NS;
 
         // Print the mean for each channel.
         printf("mean hue = %d\n", mean_h);

@@ -6,7 +6,7 @@
 
 void call_back_print_bgr(int event, int x, int y, int flags, void *userdata) {
     // Threshold.
-    static constexpr int T = 100;
+    static constexpr int T = 8;
 
     // Input image.
     cv::Mat *img = (cv::Mat*) userdata;
@@ -15,7 +15,7 @@ void call_back_print_bgr(int event, int x, int y, int flags, void *userdata) {
     cv::Mat mask = cv::Mat::zeros(img->rows, img->cols, CV_8U);
 
     // New image.
-    cv::Mat new_image{img->rows, img->cols, CV_8UC3, cv::Scalar{92, 37, 201}};
+    cv::Mat new_image{img->rows, img->cols, CV_8UC3, cv::Scalar{101, 48, 204}};
 
     int mean_h{}, mean_s{}, mean_v{};
     if (event == cv::EVENT_LBUTTONDOWN) {
@@ -45,8 +45,8 @@ void call_back_print_bgr(int event, int x, int y, int flags, void *userdata) {
             for (int j =0; j < img->cols; j++) {
                 cv::Vec3b &px = img->at<cv::Vec3b>(i, j);
                 if (std::abs((int) px[0] - mean_h) <= T and 
-                    std::abs((int) px[1] - mean_s) <= T and
-                    std::abs((int) px[2] - mean_v) <= T
+                    std::abs((int) px[1] - mean_s) <= 10 * T and
+                    std::abs((int) px[2] - mean_v) <= 15 * T
                 ) {
                     mask.at<uchar>(i, j) = 255;
                 } else {
@@ -54,6 +54,9 @@ void call_back_print_bgr(int event, int x, int y, int flags, void *userdata) {
                 }
             }
         }
+
+        // Convert to BGR.
+        cv::cvtColor(new_image, new_image, cv::COLOR_HSV2BGR);
 
         // Print the mask.
         cv::namedWindow("mask");

@@ -14,22 +14,30 @@
 #include "opencv2/highgui.hpp"
 
 
+// Used for the cylindrical projection function.
+static constexpr double angle = 33;
+
+
+// Returns the homography matrix H computed starting from the points
+// corresponding the matches between two images.
 cv::Mat find_homography_from_matches(
-        const std::vector<cv::KeyPoint> &keypoints1,
-        const std::vector<cv::KeyPoint> &keypoints2,
+        const std::vector<cv::KeyPoint> &keypts_query,
+        const std::vector<cv::KeyPoint> &keypts_train,
         const std::vector<cv::DMatch> &matches
 ) {
     std::vector<cv::Point2f> pt1, pt2;
     for (size_t i = 0; i < matches.size(); i++) {
         // Get the keypoints from the matches.
-        pt1.push_back(keypoints1[matches[i].queryIdx].pt);
-        pt2.push_back(keypoints2[matches[i].trainIdx].pt);
+        pt1.push_back(keypts_query[matches[i].queryIdx].pt);
+        pt2.push_back(keypts_train[matches[i].trainIdx].pt);
     }
 
     // Return the homography.
     return cv::findHomography(pt2, pt1, cv::RANSAC);
 }
 
+// Filter the matches in 'matches' using Lowe's ratio test.
+// Returns the survived mathces.
 std::vector<cv::DMatch> lowe_filter(
         const std::vector<std::vector<cv::DMatch>> &matches,
         const float threshold
@@ -43,6 +51,7 @@ std::vector<cv::DMatch> lowe_filter(
     return good_matches;
 }
 
+// Parse command line arguments.
 void parse_command_line(int argc, char* argv[], std::string& dir_path) {
     int opt;
     while ((opt = getopt(argc, argv, "d:")) != -1) {
@@ -57,6 +66,7 @@ void parse_command_line(int argc, char* argv[], std::string& dir_path) {
     }
 }
 
+// Append all the file names in 'dir_path' in 'filenames'.
 void get_all_filenames(const std::string& dir_path, std::vector<std::string>& filenames) {
     DIR* dir;
     struct dirent* ent;
@@ -87,7 +97,7 @@ int main(int argc, char* argv[]) {
     // Get the names of the files inside the directory.
     std::vector<std::string> images_paths;
     get_all_filenames(dir_path, images_paths);
-    std::sort(images_paths.begin(), images_paths.end());
+    std::sort(images_paths.begin(), images_paths.end()); // Sort by name.
     if (images_paths.empty()) {
         std::cerr << "No file in " << dir_path << std::endl;
         return 1;
@@ -97,7 +107,7 @@ int main(int argc, char* argv[]) {
     //for (const std::string &f : images_paths)
     //    std::cout << f << "\n";
 
-    // Open all the images and apply cylindrical Projection.
+    // Open all the images and apply cylindrical Projection to each.
     std::vector<cv::Mat> images(images_paths.size());
     for (int i = 0; i < images_paths.size(); i++) {
         images[i] = cv::imread(images_paths[i], cv::IMREAD_COLOR);
@@ -106,7 +116,7 @@ int main(int argc, char* argv[]) {
             return 1;
         }
         // Apply the cylindrical Projection to each of them.
-        images[i] = cylindricalProj(images[i], 33);
+        images[i] = cylindricalProj(images[i], angle);
     }
 
     // Define the SIFT detector.
@@ -130,8 +140,12 @@ int main(int argc, char* argv[]) {
         );
     }
 
-    // Do the thing.
-    std::vector<int> transitions;
+    // Vector in which we store the translations.
+    // transtions[i] contains the x displacement between the frame of
+    // images[i-1] and images[i].
+    std::vector<int> translations; 
+
+    // Compute the x translations between each images.
     for (size_t i = 1; i < images.size(); i++) {
         // Compute the matches between the two images.
         std::vector<std::vector<cv::DMatch>> matches;
@@ -152,34 +166,41 @@ int main(int argc, char* argv[]) {
                 good_matches
         );
 
+        // The x displacemen is given by the element h_{33} of matrix H.
         int x_trans = (int) H.at<double>(0, 2);
         //std::cout << "x_trans = " << x_trans << std::endl;
-        transitions.push_back(x_trans);
+        translations.push_back(x_trans);
     }
 
-    //std::cout << "size = "  << transitions.size() << std::endl;
     
     // Compute the total number of columns of the output image.
     // Which is given by the sum of all the transitions + the num of cols
     // of the last image in the vector 'images'.
     int tot_cols = 0;
-    for (std::vector<int>::iterator it = transitions.begin(); it != transitions.end(); it++) {
+    for (std::vector<int>::iterator it = translations.begin(); it != translations.end(); it++) {
         tot_cols += *it;
     }
     tot_cols += images.back().cols;
 
     // Create the output image.
     cv::Mat outimg = cv::Mat::zeros(images[0].rows, tot_cols, CV_8U);
-    int starting_x = 0;
-    for (size_t i = 0; i <= transitions.size(); i++) {
-        // Copy res1 to the left.
+    int starting_x = 0; // Starting column of 'outimag' from which we start
+                        // copying 'image[i]'.
+    for (size_t i = 0; i <= translations.size(); i++) {
+        // Region of 'outimg' in which we copy 'image[i]'.
         cv::Rect rect(starting_x, 0, images[i].cols, images[i].rows);
-        cv::equalizeHist(images[i], images[i]);
-        images[i].copyTo(outimg(rect));
-        if (i < transitions.size()) 
-            starting_x += transitions[i];
-    }
 
+        // Equalize histogram before copying to outimg (better result).
+        cv::equalizeHist(images[i], images[i]);
+
+        // Copy 'images[i]' to the defined region of 'outimg'.
+        images[i].copyTo(outimg(rect));
+        
+        // Update the starting column.
+        if (i < translations.size()) {
+            starting_x += translations[i];
+        }
+    }
 
     cv::imshow("out", outimg);
     cv::waitKey(0);

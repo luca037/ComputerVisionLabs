@@ -1,3 +1,4 @@
 tests
 *.out
 cv_intermediate
+build

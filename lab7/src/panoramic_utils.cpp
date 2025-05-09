@@ -1,4 +1,4 @@
-#include "header/panoramic_utils.h"
+#include "../include/panoramic_utils.h"
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
 

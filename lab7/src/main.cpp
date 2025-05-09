@@ -10,102 +10,33 @@
 #include <opencv2/calib3d.hpp>
 #include <opencv2/imgproc.hpp>
 
-#include "./PanoramicUtils/header/panoramic_utils.h"
-#include "opencv2/highgui.hpp"
-
-
-// Used for the cylindrical projection function.
-static constexpr double angle = 33;
-
-
-// Returns the homography matrix H computed starting from the points
-// corresponding the matches between two images.
-cv::Mat find_homography_from_matches(
-        const std::vector<cv::KeyPoint> &keypts_query,
-        const std::vector<cv::KeyPoint> &keypts_train,
-        const std::vector<cv::DMatch> &matches
-) {
-    std::vector<cv::Point2f> pt1, pt2;
-    for (size_t i = 0; i < matches.size(); i++) {
-        // Get the keypoints from the matches.
-        pt1.push_back(keypts_query[matches[i].queryIdx].pt);
-        pt2.push_back(keypts_train[matches[i].trainIdx].pt);
-    }
-
-    // Return the homography.
-    return cv::findHomography(pt2, pt1, cv::RANSAC);
-}
-
-// Filter the matches in 'matches' using Lowe's ratio test.
-// Returns the survived mathces.
-std::vector<cv::DMatch> lowe_filter(
-        const std::vector<std::vector<cv::DMatch>> &matches,
-        const float threshold
-) {
-    std::vector<cv::DMatch> good_matches;
-    for (size_t i = 0; i < matches.size(); i++) {
-        if (matches[i][0].distance < threshold * matches[i][1].distance) {
-            good_matches.push_back(matches[i][0]);
-        }
-    }
-    return good_matches;
-}
-
-// Parse command line arguments.
-void parse_command_line(int argc, char* argv[], std::string& dir_path) {
-    int opt;
-    while ((opt = getopt(argc, argv, "d:")) != -1) {
-        switch (opt) {
-            case 'd':
-                dir_path = optarg;
-                break;
-            case '?':
-                std::cerr << "Usage: " << argv[0] << " -d <path>" << std::endl;
-                break;
-        }
-    }
-}
-
-// Append all the file names in 'dir_path' in 'filenames'.
-void get_all_filenames(const std::string& dir_path, std::vector<std::string>& filenames) {
-    DIR* dir;
-    struct dirent* ent;
-    if ((dir = opendir(dir_path.c_str())) != NULL) {
-        // process all the files insider the directory
-        while ((ent = readdir (dir)) != NULL) {
-            std::string file_name = ent->d_name;
-            // Don't consider the current directory '.' and the parent ".."
-            if (file_name == "." || file_name == "..") {
-                continue;
-            }
-            if (*(dir_path.end() - 1) == '/') {
-                filenames.push_back(dir_path + file_name);
-            } else {
-                filenames.push_back(dir_path + "/" + file_name);
-            }
-        }
-        closedir(dir); // Close the directory.
-    }
-}
+#include "../include/panoramic_utils.h"
+#include "../include/main_utils.h"
 
 int main(int argc, char* argv[]) {
+    // Used for the cylindrical projection function.
+    double angle = 33; // Default value.
     // Get the name of the directory containing the images.
     std::string dir_path{};
-    parse_command_line(argc, argv, dir_path);
-    //std::cout << "Dir path: " << dir_path << std::endl;
+
+    // Parse command line.
+    parse_command_line(argc, argv, dir_path, angle);
+    if (dir_path.empty()) {
+        std::cerr << usage << std::endl;
+        return 1;
+    }
+    if (angle < 0) {
+        angle = 33;
+    }
 
     // Get the names of the files inside the directory.
     std::vector<std::string> images_paths;
     get_all_filenames(dir_path, images_paths);
     std::sort(images_paths.begin(), images_paths.end()); // Sort by name.
     if (images_paths.empty()) {
-        std::cerr << "No file in " << dir_path << std::endl;
+        std::cerr << "No file in '" << dir_path << "' directory" << std::endl;
         return 1;
     }
-
-    //std::cout << "All files in " << dir_path << std::endl;
-    //for (const std::string &f : images_paths)
-    //    std::cout << f << "\n";
 
     // Open all the images and apply cylindrical Projection to each.
     std::vector<cv::Mat> images(images_paths.size());

@@ -1,6 +1,7 @@
 #include "../include/main_utils.h"
 
 #include <opencv2/calib3d.hpp>
+#include <stdexcept>
 
 // Returns the homography matrix H computed starting from the points
 // corresponding the matches between two images.
@@ -42,6 +43,14 @@ void parse_command_line(int argc, char* argv[], std::string& dir_path, double &a
         switch (opt) {
             case 'd':
                 dir_path = optarg;
+                break;
+            case 'a':
+                try {
+                angle = std::stod(optarg);
+                } catch (const std::invalid_argument &ia) {
+                    std::cerr << "Invalid angle parameter: " << ia.what() << std::endl;
+                    std::cerr << "Fixed to defalut value" << std::endl;
+                }
                 break;
             case '?':
                 std::cout << usage << std::endl;

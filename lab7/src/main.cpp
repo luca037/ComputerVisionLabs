@@ -89,6 +89,10 @@ int main(int argc, char* argv[]) {
 
         // Filter the matches using Lowe's ratio.
         std::vector<cv::DMatch> good_matches = lowe_filter(matches, 0.7);
+        if (good_matches.empty()) {
+            std::cerr << "No matches survived the Lowe's ratio test..." << std::endl;
+            return 1;
+        }
 
         // Find homography matrix.
         cv::Mat H = find_homography_from_matches(

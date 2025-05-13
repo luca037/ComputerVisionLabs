@@ -1,6 +1,36 @@
 #include "../include/main_utils.h"
 
 #include <iostream>
+#include <opencv2/calib3d.hpp>
+
+double mean_reproj_err(
+    const std::vector<std::vector<cv::Vec3f>> &objpoints,
+    const std::vector<std::vector<cv::Vec2f>> &imgpoints,
+    const cv::Mat &camera_matrix,
+    const cv::Mat &dist_coeff,
+    const std::vector<cv::Mat> &rvecs,
+    const std::vector<cv::Mat> &tvecs
+) {
+    double mean_error = 0;
+    for (size_t i = 0; i < objpoints.size(); i++) {
+        // Project the object points and store them in 'imgpoints2'.
+        std::vector<cv::Vec2f> imgpoints2;
+        cv::projectPoints(
+                objpoints[i],
+                rvecs[i],
+                tvecs[i],
+                camera_matrix,
+                dist_coeff,
+                imgpoints2
+        );
+
+        // Copute the error between the real image points and the projected ones.
+        double error = cv::norm(imgpoints[i], imgpoints2) / imgpoints2.size();
+        mean_error += error;
+    }
+    mean_error /= objpoints.size();
+    return mean_error;
+}
 
 // Parse command line arguments.
 void parse_command_line(int argc, char* argv[], std::string& dir_path) {

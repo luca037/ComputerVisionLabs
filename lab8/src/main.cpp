@@ -72,7 +72,7 @@ int main(int argc, char *argv[]) {
 
             cv::Mat gray;
             cv::cvtColor(img, gray, cv::COLOR_BGR2GRAY);
-            cv::cornerSubPix(gray, corners, cv::Size{5, 5}, cv::Size{-1, -1}, criteria);
+            //cv::cornerSubPix(gray, corners, cv::Size{5, 5}, cv::Size{-1, -1}, criteria);
             imgpoints.push_back(corners);
 
             // Draw corners and show them.
@@ -91,7 +91,7 @@ int main(int argc, char *argv[]) {
     cv::calibrateCamera(
         objpoints, 
         imgpoints,
-        cv::Size{3, 3},
+        images[0].size(),
         cameraMatrix,
         distCoeffs,
         rvecs,
@@ -127,7 +127,8 @@ int main(int argc, char *argv[]) {
             cameraMatrix,
             distCoeffs,
             images[0].size(),
-            1
+            1,
+            images[0].size()
     );
 
     cv::Mat map1, map2;
@@ -137,7 +138,7 @@ int main(int argc, char *argv[]) {
         cv::Mat{},
         newCameraMatrix,
         images[0].size(),
-        CV_32FC1,
+        CV_16SC2,
         map1,
         map2
     );
@@ -146,10 +147,11 @@ int main(int argc, char *argv[]) {
 
     // Remap.
     cv::Mat output;
-    cv::remap(images[0], output, map1, map2, cv::INTER_LINEAR);
+    cv::Mat img = cv::imread("../test_image.png");
+    cv::remap(img, output, map1, map2, cv::INTER_LINEAR);
 
     cv::imshow("ouput", output);
-    cv::imshow("src", images[0]);
+    //cv::imshow("src", images[0]);
     cv::waitKey(0);
     
     return 0;

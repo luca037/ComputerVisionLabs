@@ -113,7 +113,7 @@ int main(int argc, char *argv[]) {
         camera_matrix,
         dist_coeff,
         images[0].size(), // We assume all images have same size.
-        1,
+        0,
         images[0].size()
     );
 
